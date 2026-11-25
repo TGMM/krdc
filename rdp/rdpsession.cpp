@@ -54,8 +54,6 @@
 #include <freerdp/client/file.h>
 
 #include <QFile>
-
-#include <msdevbox.h>
 #endif
 
 #include "rdpview.h"
@@ -66,29 +64,14 @@ namespace
 {
 #ifdef HAVE_DEVBOX
 /**
- * Access token for RDS AAD authentication of ARM-gatewayed connections.
- *
- * The Dev Box pipeline signs in once (in the Dev Box tool or an earlier
- * connection) and caches the token; it is refreshed silently when possible.
- * When nothing is cached, refuse and let FreeRDP fall back to its own flow.
+ * RDSAAD authentication of ARM-gatewayed connections uses per-host
+ * proof-of-possession tokens for the dynamic scope
+ *   ms-device-service://termsrv.wvd.microsoft.com/name/<host>/user_impersonation
+ * FreeRDP's own access token flow (system browser + local redirect listener)
+ * acquires exactly that; this is intentionally NOT overridden here.
+ * The Dev Box library's feed token (RD Web scope) is a different credential
+ * and is rejected by the termsrv logon (STATUS_LOGON_FAILURE).
  */
-BOOL getDevBoxAccessToken(freerdp *instance, AccessTokenType tokenType, char **token, size_t count, ...)
-{
-    Q_UNUSED(instance)
-    Q_UNUSED(count)
-    if (!token || (tokenType != ACCESS_TOKEN_TYPE_AAD && tokenType != ACCESS_TOKEN_TYPE_AVD)) {
-        return FALSE;
-    }
-    char *cached = msdevbox_access_token(MSDEVBOX_SCOPE_RDWEB);
-    if (!cached) {
-        qCWarning(KRDC) << "No cached Dev Box access token, FreeRDP will fall back to its own sign-in:"
-                        << QString::fromUtf8(msdevbox_last_error());
-        return FALSE;
-    }
-    *token = _strdup(cached);
-    msdevbox_free_string(cached);
-    return TRUE;
-}
 #endif
 
 struct LocalScreenGeometry {
@@ -571,9 +554,6 @@ BOOL RdpSession::clientContextNew(freerdp *instance, rdpContext *context)
     instance->PresentGatewayMessage = presentGatewayMessage;
     instance->ChooseSmartcard = chooseSmartcard;
     instance->RetryDialog = retryDialog;
-#ifdef HAVE_DEVBOX
-    instance->GetAccessToken = getDevBoxAccessToken;
-#endif
 
     return true;
 }

@@ -48,9 +48,10 @@ KRDC opens the file, asks once whether to trust its cloud routing properties
 
 - the full routing payload is applied (ARM gateway transport, load balance
   info, sign scope),
-- the RDSAAD access token comes from the shared Dev Box token cache —
-  sign-in happened in step 1, so no prompt appears; without a cached token
-  FreeRDP falls back to its own sign-in,
+- RDSAAD authentication runs through FreeRDP's own access token flow
+  (system browser + local redirect listener — instant with an existing
+  sign-in session). The Dev Box library's feed token is a different
+  credential and deliberately not served to the termsrv logon,
 - the `teamscap` channel answers the Teams VDI 1.0 handshake, so Teams in
   the Dev Box reports **"Teams is AVD Media Optimized"**.
 
@@ -61,7 +62,7 @@ KRDC opens the file, asks once whether to trust its cloud routing properties
 | CMake | `WITH_DEVBOX` option; `find_package(MsDevBox 0.1 REQUIRED CONFIG)` against the installed package (Rust library with a C ABI) |
 | Preferences | `RdpHostPreferences::rdpFilePath` — the per-host remembered connection file |
 | Factory | carry the file path through `ConnectionFile`; consent dialog + remember for ARM-gatewayed files |
-| Session | apply routing payload via `freerdp_client_parse_rdp_file`; enforce ARM transport + RDSAAD; `GetAccessToken` from the token cache; add the `teamscap` dynamic channel |
+| Session | apply routing payload via `freerdp_client_parse_rdp_file`; enforce ARM transport + RDSAAD; load the `teamscap` dynamic channel. RDSAAD tokens come from FreeRDP's own flow (per-host PoP scope `ms-device-service://termsrv.wvd.microsoft.com/name/<host>/user_impersonation`) — not from the Dev Box library's feed token |
 
 Everything is guarded by `#ifdef HAVE_DEVBOX`; building with
 `-DWITH_DEVBOX=OFF` restores stock behavior.
