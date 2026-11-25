@@ -96,6 +96,14 @@ if(KF6Solid_FOUND AND FreeRDP_VERSION VERSION_GREATER_EQUAL 3.16)
     target_compile_definitions(kcm_krdc_rdpplugin PRIVATE HAVE_RDPDR_HOTPLUG)
 endif()
 
+# Microsoft Dev Box connections: full .rdp routing (ARM gateway, RDSAAD),
+# AAD access token from the shared token cache and the teamscap channel
+# for Teams media optimization.
+if(WITH_DEVBOX)
+    target_compile_definitions(krdc_rdpplugin PRIVATE HAVE_DEVBOX)
+    target_link_libraries(krdc_rdpplugin MsDevBox::MsDevBox)
+endif()
+
 add_dependencies(kcm_krdc_rdpplugin krdc_rdpplugin)
 
 install(TARGETS kcm_krdc_rdpplugin DESTINATION ${KDE_INSTALL_PLUGINDIR}/krdc/kcms)
