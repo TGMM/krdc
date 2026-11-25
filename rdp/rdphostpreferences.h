@@ -199,6 +199,9 @@ public:
     bool useDefaultKerberosRealm() const;
     void setUseDefaultKerberosRealm(bool enabled);
 
+    bool redirectSecurityKeys() const;
+    void setRedirectSecurityKeys(bool enabled);
+
     bool authPkgKerberos() const;
     void setAuthPkgKerberos(bool enabled);
     bool authPkgNtlm() const;

@@ -371,6 +371,11 @@ BOOL RdpSession::authenticateEx(freerdp *instance, char **username, char **passw
 {
     auto session = reinterpret_cast<RdpContext *>(instance->context)->session;
 
+    // The FIDO2 PIN is not the account password: never show the session login dialog for it.
+    if (reason == AUTH_FIDO_PIN) {
+        return session->onFidoPin(password);
+    }
+
     // Without a gateway user name, the gateway uses the same login as the remote computer.
     const bool gateway = reason == GW_AUTH_HTTP || reason == GW_AUTH_RDG || reason == GW_AUTH_RPC;
     const bool authenticated = gateway && *username && **username ? session->onAuthenticateGateway(username, password, domain)
@@ -816,7 +821,7 @@ int RdpSession::clientContextStart(rdpContext *context)
     if (!freerdp_settings_set_bool(settings, FreeRDP_SupportDynamicChannels, true)) {
         return -1;
     }
-    if (!freerdp_settings_set_bool(settings, FreeRDP_RedirectWebAuthN, true)) {
+    if (!freerdp_settings_set_bool(settings, FreeRDP_RedirectWebAuthN, preferences->redirectSecurityKeys())) {
         return -1;
     }
 
@@ -1602,6 +1607,12 @@ void RdpSession::setGatewayLogin(const QString &user, const QString &domain, con
     m_gatewayLoginEntered = true;
 }
 
+void RdpSession::setFidoPin(const QString &pin)
+{
+    m_fidoPin = pin;
+    m_fidoPinEntered = true;
+}
+
 void RdpSession::setHostPreferences(RdpHostPreferences *preferences)
 {
     m_preferences = preferences;
@@ -1859,6 +1870,23 @@ bool RdpSession::onAuthenticateGateway(char **username, char **password, char **
     m_gatewayPassword.clear();
 
     return true;
+}
+
+bool RdpSession::onFidoPin(char **password)
+{
+    m_fidoPin.clear();
+    m_fidoPinEntered = false;
+
+    Q_EMIT onFidoPinRequested();
+
+    if (!m_fidoPinEntered) {
+        return false;
+    }
+
+    free(*password);
+    *password = _strdup(m_fidoPin.toUtf8().data());
+    m_fidoPin.clear();
+    return *password != nullptr;
 }
 
 bool RdpSession::onAuthenticate(char **username, char **password, char **domain)

@@ -399,6 +399,7 @@ QWidget *RdpHostPreferences::createProtocolSpecificConfigPage(QWidget *sshTunnel
     rdpUi.kcfg_AuthPkgNtlm->setChecked(authPkgNtlm());
     rdpUi.kcfg_AuthPkgU2u->setChecked(authPkgU2u());
     rdpUi.kcfg_UseDefaultKerberosRealm->setChecked(useDefaultKerberosRealm());
+    rdpUi.kcfg_RedirectSecurityKeys->setChecked(redirectSecurityKeys());
 
     setupRdpSettingsForm(rdpUi);
     updateWidthHeight(resolution());
@@ -490,6 +491,7 @@ void RdpHostPreferences::acceptConfig()
     setAuthPkgNtlm(rdpUi.kcfg_AuthPkgNtlm->isChecked());
     setAuthPkgU2u(rdpUi.kcfg_AuthPkgU2u->isChecked());
     setUseDefaultKerberosRealm(rdpUi.kcfg_UseDefaultKerberosRealm->isChecked());
+    setRedirectSecurityKeys(rdpUi.kcfg_RedirectSecurityKeys->isChecked());
 }
 
 bool RdpHostPreferences::scaleToSize() const
@@ -784,6 +786,16 @@ bool RdpHostPreferences::useDefaultKerberosRealm() const
 void RdpHostPreferences::setUseDefaultKerberosRealm(bool enabled)
 {
     m_configGroup.writeEntry("useDefaultKerberosRealm", enabled);
+}
+
+bool RdpHostPreferences::redirectSecurityKeys() const
+{
+    return m_configGroup.readEntry("redirectSecurityKeys", Settings::redirectSecurityKeys());
+}
+
+void RdpHostPreferences::setRedirectSecurityKeys(bool enabled)
+{
+    m_configGroup.writeEntry("redirectSecurityKeys", enabled);
 }
 
 bool RdpHostPreferences::authPkgKerberos() const

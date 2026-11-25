@@ -121,6 +121,9 @@ public:
     /** Answers onGatewayAuthRequested(). Without a call, the gateway login is canceled. */
     void setGatewayLogin(const QString &user, const QString &domain, const QString &password);
 
+    /** Answers onFidoPinRequested(). Without a call, the WebAuthn request fails. */
+    void setFidoPin(const QString &pin);
+
     RdpHostPreferences *preferences() const;
     void setHostPreferences(RdpHostPreferences *preferences);
 
@@ -162,6 +165,7 @@ public:
     Q_SIGNAL void errorMessage(unsigned int error);
     Q_SIGNAL void onAuthRequested();
     Q_SIGNAL void onGatewayAuthRequested();
+    Q_SIGNAL void onFidoPinRequested();
     Q_SIGNAL void onVerifyCertificate(RdpSession::CertificateResult *ret, const QString &certificate, bool gateway);
     Q_SIGNAL void onVerifyChangedCertificate(RdpSession::CertificateResult *ret, const QString &oldCertificate, const QString &newCertificate, bool gateway);
     Q_SIGNAL void onLogonError(const QString &error);
@@ -227,6 +231,7 @@ private:
     void setState(State newState);
 
     bool onAuthenticate(char **username, char **password, char **domain);
+    bool onFidoPin(char **password);
     bool onAuthenticateGateway(char **username, char **password, char **domain);
 
     void run();
@@ -263,6 +268,8 @@ private:
     QString m_gatewayDomain;
     QString m_gatewayPassword;
     bool m_gatewayLoginEntered = false;
+    QString m_fidoPin;
+    bool m_fidoPinEntered = false;
     bool m_ignoreSavedGatewayPassword = false;
     QString m_savedGatewayPassword;
     bool m_needKeyStateSync = true;

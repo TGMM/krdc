@@ -64,6 +64,7 @@ public Q_SLOTS:
     void scaleResize(int w, int h) override;
     void onAuthRequested();
     void onGatewayAuthRequested();
+    void onFidoPinRequested();
     void onVerifyCertificate(RdpSession::CertificateResult *ret, const QString &certificate, bool gateway);
     void onVerifyChangedCertificate(RdpSession::CertificateResult *ret, const QString &oldCertificate, const QString &newCertificate, bool gateway);
     void onLogonError(const QString &error);

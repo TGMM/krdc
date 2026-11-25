@@ -760,6 +760,16 @@
          </property>
         </widget>
        </item>
+       <item row="4" column="1">
+        <widget class="QCheckBox" name="kcfg_RedirectSecurityKeys">
+         <property name="text">
+          <string>Redirect security keys (WebAuthn/FIDO2)</string>
+         </property>
+         <property name="toolTip">
+          <string>Lets the remote computer use security keys connected to this computer. You will be asked for the key's PIN when it is needed.</string>
+         </property>
+        </widget>
+       </item>
       </layout>
      </widget>
      <widget class="QWidget" name="connectionTab">
@@ -1224,6 +1234,7 @@
   <tabstop>kcfg_KeyboardLayout</tabstop>
   <tabstop>kcfg_ShareMedia</tabstop>
   <tabstop>kcfg_SmartcardName</tabstop>
+  <tabstop>kcfg_RedirectSecurityKeys</tabstop>
   <tabstop>kcfg_ConsoleMode</tabstop>
   <tabstop>kcfg_PreventSessionLock</tabstop>
   <tabstop>kcfg_UseGateway</tabstop>

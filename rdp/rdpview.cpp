@@ -260,6 +260,7 @@ bool RdpView::startConnection()
     connect(m_session.get(), &RdpSession::errorMessage, this, &RdpView::handleError);
     connect(m_session.get(), &RdpSession::onLogonError, this, &RdpView::onLogonError);
     connect(m_session.get(), &RdpSession::onAuthRequested, this, &RdpView::onAuthRequested, Qt::BlockingQueuedConnection);
+    connect(m_session.get(), &RdpSession::onFidoPinRequested, this, &RdpView::onFidoPinRequested, Qt::BlockingQueuedConnection);
     connect(m_session.get(), &RdpSession::onGatewayAuthRequested, this, &RdpView::onGatewayAuthRequested, Qt::BlockingQueuedConnection);
     connect(m_session.get(), &RdpSession::onVerifyCertificate, this, &RdpView::onVerifyCertificate, Qt::BlockingQueuedConnection);
     connect(m_session.get(), &RdpSession::onVerifyChangedCertificate, this, &RdpView::onVerifyChangedCertificate, Qt::BlockingQueuedConnection);
@@ -361,6 +362,24 @@ void RdpView::onGatewayAuthRequested()
     m_saveGatewayPassword = acceptPasswordDialog(dialog);
     m_enteredGatewayPassword = dialog.password();
     m_session->setGatewayLogin(dialog.username(), dialog.domain(), m_enteredGatewayPassword);
+}
+
+void RdpView::onFidoPinRequested()
+{
+    if (m_quitting) {
+        return;
+    }
+
+    // Cancelling leaves the PIN unset, which fails the WebAuthn request without sending a wrong PIN.
+    KPasswordDialog dialog(nullptr, KPasswordDialog::NoFlags);
+    dialog.setWindowTitle(i18nc("@title:window", "Security Key PIN"));
+    dialog.setPrompt(i18nc("@label", "Enter the PIN of your security key."));
+
+    if (!dialog.exec()) {
+        return;
+    }
+
+    m_session->setFidoPin(dialog.password());
 }
 
 void RdpView::onVerifyCertificate(RdpSession::CertificateResult *ret, const QString &certificate, bool gateway)
