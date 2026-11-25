@@ -157,6 +157,13 @@ public:
     bool useGateway() const;
     void setUseGateway(bool useGateway);
 
+    // The .rdp file a Dev Box (or other ARM-gatewayed) connection came from.
+    // When set, the session applies the file's full routing payload (ARM
+    // gateway, RDSAAD, load balance info, sign scope) via FreeRDP's own .rdp
+    // parser, after asking the user to trust the file.
+    QString rdpFilePath() const;
+    void setRdpFilePath(const QString &rdpFilePath);
+
     GatewayTransportType gatewayTransportType() const;
     void setGatewayTransportType(GatewayTransportType gatewayTransportType);
 

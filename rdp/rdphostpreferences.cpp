@@ -659,6 +659,19 @@ void RdpHostPreferences::setUseGateway(bool useGateway)
     m_configGroup.writeEntry("useGateway", useGateway);
 }
 
+QString RdpHostPreferences::rdpFilePath() const
+{
+    return m_configGroup.readEntry("rdpFilePath", QString());
+}
+void RdpHostPreferences::setRdpFilePath(const QString &rdpFilePath)
+{
+    if (rdpFilePath.isEmpty()) {
+        m_configGroup.deleteEntry("rdpFilePath");
+    } else {
+        m_configGroup.writeEntry("rdpFilePath", rdpFilePath);
+    }
+}
+
 RdpHostPreferences::GatewayTransportType RdpHostPreferences::gatewayTransportType() const
 {
     return GatewayTransportType(m_configGroup.readEntry("gatewayTransportType", int(Settings::gatewayTransportType())));
