@@ -816,6 +816,9 @@ int RdpSession::clientContextStart(rdpContext *context)
     if (!freerdp_settings_set_bool(settings, FreeRDP_SupportDynamicChannels, true)) {
         return -1;
     }
+    if (!freerdp_settings_set_bool(settings, FreeRDP_RedirectWebAuthN, true)) {
+        return -1;
+    }
 
     switch (preferences->sound()) {
     case RdpHostPreferences::Sound::Local:
