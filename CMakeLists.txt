@@ -276,7 +276,7 @@ if(SharedMimeInfo_FOUND)
 endif()
 
 ki18n_install(po)
-if(KF6DocTools_FOUND)
+if(KRDC_BUILD_DOCS AND KF6DocTools_FOUND)
     kdoctools_install(po)
 endif()
 
