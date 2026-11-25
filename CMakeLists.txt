@@ -187,12 +187,19 @@ if(WITH_SPICE)
     set(KRDC_SPICE_MIME_TYPES "x-scheme-handler/spice;application/x-virt-viewer;")
 endif()
 
+option(KRDC_BUILD_DOCS "Build the KRDC documentation" ON)
+add_feature_info(Docs KRDC_BUILD_DOCS "Building the KRDC documentation")
+
 add_subdirectory(test)
 
-if(KF6DocTools_FOUND)
+if(KRDC_BUILD_DOCS AND KF6DocTools_FOUND)
     add_subdirectory(doc)
 else()
-    message("KF6DocTools not found. Not building documentation.")
+    if(NOT KF6DocTools_FOUND)
+        message("KF6DocTools not found. Not building documentation.")
+    else()
+        message("KRDC_BUILD_DOCS is OFF. Not building documentation.")
+    endif()
 endif()
 
 
