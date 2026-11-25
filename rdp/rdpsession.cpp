@@ -50,12 +50,46 @@
 #include <winpr/string.h>
 #include <winpr/synch.h>
 
+#ifdef HAVE_DEVBOX
+#include <freerdp/client/file.h>
+
+#include <QFile>
+
+#include <msdevbox/auth.h>
+#include <msdevbox/constants.h>
+#endif
+
 #include "rdpview.h"
 
 #include "krdc_debug.h"
 
 namespace
 {
+#ifdef HAVE_DEVBOX
+/**
+ * Access token for RDS AAD authentication of ARM-gatewayed connections.
+ *
+ * The Dev Box pipeline signs in once (in the Dev Box tool or an earlier
+ * connection) and caches the token; refresh it silently when possible. When
+ * nothing is cached, refuse and let FreeRDP fall back to its own flow.
+ */
+BOOL getDevBoxAccessToken(freerdp *instance, AccessTokenType tokenType, char **token, size_t count, ...)
+{
+    Q_UNUSED(instance)
+    Q_UNUSED(count)
+    if (!token || (tokenType != ACCESS_TOKEN_TYPE_AAD && tokenType != ACCESS_TOKEN_TYPE_AVD)) {
+        return FALSE;
+    }
+    const MsDevBox::TokenResult result = MsDevBox::Auth().accessToken(QString::fromLatin1(MsDevBox::Constants::ScopeRdWeb));
+    if (!result.valid || result.accessToken.isEmpty()) {
+        qCWarning(KRDC) << "No cached Dev Box access token, FreeRDP will fall back to its own sign-in";
+        return FALSE;
+    }
+    *token = _strdup(result.accessToken.toUtf8().constData());
+    return TRUE;
+}
+#endif
+
 struct LocalScreenGeometry {
     qsizetype id;
     QScreen *screen;
@@ -536,8 +570,9 @@ BOOL RdpSession::clientContextNew(freerdp *instance, rdpContext *context)
     instance->PresentGatewayMessage = presentGatewayMessage;
     instance->ChooseSmartcard = chooseSmartcard;
     instance->RetryDialog = retryDialog;
-    // TODO
-    // instance->GetAccessToken = RdpAADView::getAccessToken;
+#ifdef HAVE_DEVBOX
+    instance->GetAccessToken = getDevBoxAccessToken;
+#endif
 
     return true;
 }
@@ -572,6 +607,65 @@ int RdpSession::clientContextStart(rdpContext *context)
     auto preferences = session->m_preferences;
 
     session->m_monitors.clear();
+
+#ifdef HAVE_DEVBOX
+    // ARM-gatewayed connections (Dev Box / Windows 365 Cloud PC) carry a signed
+    // routing payload that only FreeRDP's own .rdp parser understands: the ARM
+    // path, load balance info, sign scope and the gateway routing properties.
+    // Apply it before the preferences below, so the user's KRDC settings still
+    // win wherever KRDC models them.
+    const QString devBoxRdpFile = preferences->rdpFilePath();
+    if (!devBoxRdpFile.isEmpty() && QFile::exists(devBoxRdpFile)) {
+        rdpFile *file = freerdp_client_rdp_file_new();
+        const QByteArray devBoxPathBytes = QFile::encodeName(devBoxRdpFile);
+        if (freerdp_client_parse_rdp_file(file, devBoxPathBytes.constData())
+            && freerdp_client_populate_settings_from_rdp_file(file, settings)) {
+            qCDebug(KRDC) << "Applied routing properties from" << devBoxRdpFile;
+        } else {
+            qCWarning(KRDC) << "Could not parse" << devBoxRdpFile << "- continuing with basic settings";
+        }
+        freerdp_client_rdp_file_free(file);
+
+        // Guarantee the properties the routing depends on, whatever the .rdp
+        // parser of the installed FreeRDP version covers.
+        QFile devBoxFile(devBoxRdpFile);
+        if (devBoxFile.open(QIODevice::ReadOnly)) {
+            const QByteArray devBoxContent = devBoxFile.readAll().toLower();
+            devBoxFile.close();
+
+            const bool armGateway = devBoxContent.contains("resourceprovider:s:arm");
+            const bool rdsAad = devBoxContent.contains("enablerdsaadauth:i:1");
+            if (armGateway) {
+                if (!freerdp_settings_set_bool(settings, FreeRDP_GatewayEnabled, true)) {
+                    return -1;
+                }
+                if (!freerdp_settings_set_bool(settings, FreeRDP_GatewayArmTransport, true)) {
+                    return -1;
+                }
+                if (!freerdp_settings_set_bool(settings, FreeRDP_GatewayHttpTransport, true)) {
+                    return -1;
+                }
+                if (!freerdp_settings_set_bool(settings, FreeRDP_GatewayRpcTransport, false)) {
+                    return -1;
+                }
+            }
+            if (rdsAad && !freerdp_settings_set_bool(settings, FreeRDP_AadSecurity, true)) {
+                return -1;
+            }
+
+            // Teams media optimization: the VM side only enables it when an
+            // endpoint plugin answers on com.microsoft.rdc.dvc.webrtc.1. The
+            // teamscap addin ships with the Dev Box FreeRDP deployment.
+            if (armGateway) {
+                const char *teamscapArgs[] = {"teamscap"};
+                if (!freerdp_client_add_dynamic_channel(settings, 1, teamscapArgs)) {
+                    qCWarning(KRDC) << "Could not add the teamscap channel; Teams media optimization"
+                                       " needs the Dev Box build of libfreerdp3";
+                }
+            }
+        }
+    }
+#endif
 
     if (!freerdp_settings_set_string(settings, FreeRDP_ServerHostname, session->m_host.toUtf8().data())) {
         return -1;
