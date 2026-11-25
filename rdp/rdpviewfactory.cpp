@@ -164,6 +164,11 @@ RemoteViewFactory::ConnectionFile RdpViewFactory::loadConnectionFile(const QUrl 
         loadedUrl.setQuery(query);
     }
 
+    // Let importFileSettings() know which file these entries came from. The
+    // parser lowercases keys and splits at the first colon, so a real .rdp
+    // file can never produce this key.
+    entries.insert(QStringLiteral("krdc:filepath"), url.toLocalFile());
+
     return {loadedUrl, std::move(entries)};
 }
 
@@ -219,6 +224,28 @@ bool RdpViewFactory::importFileSettings(const QHash<QString, QString> &entries, 
         preferences.setGatewayUsername(QString());
         preferences.setGatewayPassword(QString());
         preferences.setGatewayDomain(QString());
+    }
+
+    // ARM-gatewayed connections (Microsoft Dev Box / Windows 365 Cloud PC) carry a signed
+    // routing payload the import above leaves out: the ARM path, load balance info, sign
+    // scope and RDSAAD authentication. Applying it needs the file itself, so remember the
+    // file — with consent, as with the gateway above.
+    const QString filePath = entries.value(QStringLiteral("krdc:filepath"));
+    const bool isArmConnection = entries.contains(QStringLiteral("armpath"))
+        && entries.value(QStringLiteral("resourceprovider")).trimmed().compare(QLatin1String("arm"), Qt::CaseInsensitive) == 0;
+    if (isArmConnection && !filePath.isEmpty()
+        && KMessageBox::warningContinueCancel(parent,
+                                              i18nc("@info %1 is a file path",
+                                                    "This file describes a cloud connection with advanced routing "
+                                                    "properties (ARM gateway). KRDC will keep using the file to "
+                                                    "connect: “%1”. Continue only if you trust this file.",
+                                                    filePath),
+                                              i18nc("@title:window", "Use Cloud Connection File?"))
+            != KMessageBox::Continue) {
+        return false;
+    }
+    if (isArmConnection && !filePath.isEmpty()) {
+        preferences.setRdpFilePath(filePath);
     }
 
     const int screenMode = readInt(entries, QStringLiteral("screen mode id"), 0);
