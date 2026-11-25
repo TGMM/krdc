@@ -166,15 +166,9 @@ if(WITH_RDP)
     option(WITH_DEVBOX "Enable Microsoft Dev Box support" ON)
     add_feature_info(DevBox WITH_DEVBOX "Microsoft Dev Box / Windows 365 Cloud PC connections: listing, sign-in, ARM gateway routing and Teams media optimization")
     if(WITH_DEVBOX)
-        find_package(MsDevBox 0.1 QUIET CONFIG)
-        if(NOT MsDevBox_FOUND)
-            include(FetchContent)
-            FetchContent_Declare(MsDevBox
-                GIT_REPOSITORY https://github.com/TGMM/libmsdevbox.git
-                GIT_TAG main)
-            FetchContent_MakeAvailable(MsDevBox)
-            message(STATUS "Using MsDevBox from git (install libmsdevbox for a fixed version)")
-        endif()
+        # libmsdevbox is a Rust library with a C ABI; build and install it
+        # with its scripts/install.sh first (it provides this package).
+        find_package(MsDevBox 0.1 REQUIRED CONFIG)
         set_package_properties(MsDevBox PROPERTIES
             DESCRIPTION "Microsoft Dev Box client library"
             URL "https://github.com/TGMM/libmsdevbox"

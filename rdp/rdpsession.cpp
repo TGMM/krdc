@@ -55,8 +55,7 @@
 
 #include <QFile>
 
-#include <msdevbox/auth.h>
-#include <msdevbox/constants.h>
+#include <msdevbox.h>
 #endif
 
 #include "rdpview.h"
@@ -70,8 +69,8 @@ namespace
  * Access token for RDS AAD authentication of ARM-gatewayed connections.
  *
  * The Dev Box pipeline signs in once (in the Dev Box tool or an earlier
- * connection) and caches the token; refresh it silently when possible. When
- * nothing is cached, refuse and let FreeRDP fall back to its own flow.
+ * connection) and caches the token; it is refreshed silently when possible.
+ * When nothing is cached, refuse and let FreeRDP fall back to its own flow.
  */
 BOOL getDevBoxAccessToken(freerdp *instance, AccessTokenType tokenType, char **token, size_t count, ...)
 {
@@ -80,12 +79,14 @@ BOOL getDevBoxAccessToken(freerdp *instance, AccessTokenType tokenType, char **t
     if (!token || (tokenType != ACCESS_TOKEN_TYPE_AAD && tokenType != ACCESS_TOKEN_TYPE_AVD)) {
         return FALSE;
     }
-    const MsDevBox::TokenResult result = MsDevBox::Auth().accessToken(QString::fromLatin1(MsDevBox::Constants::ScopeRdWeb));
-    if (!result.valid || result.accessToken.isEmpty()) {
-        qCWarning(KRDC) << "No cached Dev Box access token, FreeRDP will fall back to its own sign-in";
+    char *cached = msdevbox_access_token(MSDEVBOX_SCOPE_RDWEB);
+    if (!cached) {
+        qCWarning(KRDC) << "No cached Dev Box access token, FreeRDP will fall back to its own sign-in:"
+                        << QString::fromUtf8(msdevbox_last_error());
         return FALSE;
     }
-    *token = _strdup(result.accessToken.toUtf8().constData());
+    *token = _strdup(cached);
+    msdevbox_free_string(cached);
     return TRUE;
 }
 #endif

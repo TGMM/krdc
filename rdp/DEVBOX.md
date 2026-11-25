@@ -20,9 +20,11 @@ with working Teams media optimization. It builds on two components:
    `{ "teamscap", FreeRDP_BOOL_UNUSED }` row to `dynChannels[]` in
    `client/common/cmdline.c`, then build and install. KRDC must link this
    build (`-DCMAKE_PREFIX_PATH=...`).
-2. libmsdevbox installed (`cmake && cmake --build && cmake --install`),
-   or let the CMake `FetchContent` fallback fetch it at configure time
-   (`-DWITH_DEVBOX=ON`, the default).
+2. libmsdevbox built and installed — it is a Rust library with a plain C
+   ABI, so its build is separate from CMake: `cargo build --release` then
+   `scripts/install.sh` (installs the shared library, `msdevbox.h` and the
+   CMake package config). KRDC's `-DWITH_DEVBOX=ON` then resolves it with
+   `find_package(MsDevBox 0.1 REQUIRED CONFIG)`.
 
 ## User flow
 
@@ -56,7 +58,7 @@ KRDC opens the file, asks once whether to trust its cloud routing properties
 
 | Commit | Contents |
 |---|---|
-| CMake | `WITH_DEVBOX` option; `find_package(MsDevBox)` with a `FetchContent` fallback, following the existing dependency pattern |
+| CMake | `WITH_DEVBOX` option; `find_package(MsDevBox 0.1 REQUIRED CONFIG)` against the installed package (Rust library with a C ABI) |
 | Preferences | `RdpHostPreferences::rdpFilePath` — the per-host remembered connection file |
 | Factory | carry the file path through `ConnectionFile`; consent dialog + remember for ARM-gatewayed files |
 | Session | apply routing payload via `freerdp_client_parse_rdp_file`; enforce ARM transport + RDSAAD; `GetAccessToken` from the token cache; add the `teamscap` dynamic channel |
