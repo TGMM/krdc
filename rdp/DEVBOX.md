@@ -48,10 +48,14 @@ KRDC opens the file, asks once whether to trust its cloud routing properties
 
 - the full routing payload is applied (ARM gateway transport, load balance
   info, sign scope),
-- RDSAAD authentication runs through FreeRDP's own access token flow
-  (system browser + local redirect listener — instant with an existing
-  sign-in session). The Dev Box library's feed token is a different
-  credential and deliberately not served to the termsrv logon,
+- the ARM gateway token is served silently from the shared Dev Box token
+  cache (RD Web scope; refreshed from its refresh token when needed) — no
+  interactive token round,
+- the host logon uses NLA: KRDC's normal credential dialog (username from
+  the file, password typed once and rememberable). RDSAAD is disabled for
+  these connections on purpose: its per-host proof-of-possession token
+  cannot be served from a cache and its browser flow needs the platform
+  broker, which is not available under Linux desktops,
 - the `teamscap` channel answers the Teams VDI 1.0 handshake, so Teams in
   the Dev Box reports **"Teams is AVD Media Optimized"**.
 

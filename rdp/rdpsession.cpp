@@ -54,6 +54,8 @@
 #include <freerdp/client/file.h>
 
 #include <QFile>
+
+#include <msdevbox.h>
 #endif
 
 #include "rdpview.h"
@@ -64,14 +66,32 @@ namespace
 {
 #ifdef HAVE_DEVBOX
 /**
- * RDSAAD authentication of ARM-gatewayed connections uses per-host
- * proof-of-possession tokens for the dynamic scope
- *   ms-device-service://termsrv.wvd.microsoft.com/name/<host>/user_impersonation
- * FreeRDP's own access token flow (system browser + local redirect listener)
- * acquires exactly that; this is intentionally NOT overridden here.
- * The Dev Box library's feed token (RD Web scope) is a different credential
- * and is rejected by the termsrv logon (STATUS_LOGON_FAILURE).
+ * Access token for the ARM gateway (ACCESS_TOKEN_TYPE_AVD) of ARM-gatewayed
+ * connections: the RD Web scope and client identity — the exact credential
+ * the Dev Box library acquires at sign-in and caches. Served from the
+ * shared cache, silently refreshed when possible.
+ *
+ * The termsrv RDSAAD stage (ACCESS_TOKEN_TYPE_AAD, per-host proof-of-
+ * possession scope) is deliberately NOT served: Dev Box connections in
+ * KRDC log on with NLA (see clientContextStart), so that stage never runs.
  */
+BOOL getDevBoxAccessToken(freerdp *instance, AccessTokenType tokenType, char **token, size_t count, ...)
+{
+    Q_UNUSED(instance)
+    Q_UNUSED(count)
+    if (!token || tokenType != ACCESS_TOKEN_TYPE_AVD) {
+        return FALSE;
+    }
+    char *cached = msdevbox_access_token(MSDEVBOX_SCOPE_RDWEB);
+    if (!cached) {
+        qCWarning(KRDC) << "No cached Dev Box access token, FreeRDP will fall back to its own sign-in:"
+                        << QString::fromUtf8(msdevbox_last_error());
+        return FALSE;
+    }
+    *token = _strdup(cached);
+    msdevbox_free_string(cached);
+    return TRUE;
+}
 #endif
 
 struct LocalScreenGeometry {
@@ -554,6 +574,9 @@ BOOL RdpSession::clientContextNew(freerdp *instance, rdpContext *context)
     instance->PresentGatewayMessage = presentGatewayMessage;
     instance->ChooseSmartcard = chooseSmartcard;
     instance->RetryDialog = retryDialog;
+#ifdef HAVE_DEVBOX
+    instance->GetAccessToken = getDevBoxAccessToken;
+#endif
 
     return true;
 }
@@ -630,8 +653,21 @@ int RdpSession::clientContextStart(rdpContext *context)
                     return -1;
                 }
             }
-            if (rdsAad && !freerdp_settings_set_bool(settings, FreeRDP_AadSecurity, true)) {
-                return -1;
+            if (rdsAad) {
+                // Dev Box connections log on with NLA (username + password,
+                // KRDC's credential dialog): the termsrv RDSAAD flow needs a
+                // per-host proof-of-possession token that cannot be served
+                // from the shared cache, and its browser flow does not
+                // complete without the platform broker. The ARM gateway
+                // token (RD Web scope) IS served from the cache, so the
+                // whole connection runs without any interactive token
+                // round. Requires NLA to stay enabled (KRDC's default).
+                if (!freerdp_settings_set_bool(settings, FreeRDP_AadSecurity, false)) {
+                    return -1;
+                }
+                if (!freerdp_settings_set_bool(settings, FreeRDP_NlaSecurity, true)) {
+                    return -1;
+                }
             }
 
             // Teams media optimization: the VM side only enables it when an
